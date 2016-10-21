@@ -18,68 +18,63 @@
 #
 ##############################################################################
 
-from openerp.osv import fields, orm
+from odoo import fields, models, api
 
 
-class ProjectProject(orm.Model):
+class ProjectProject(models.Model):
     _inherit = 'project.project'
-    _columns = {
-        'task_categ_id': fields.many2one(
-            'project.category', 'Root Category for Tasks'),
-        }
+    task_categ_id = fields.Many2one(comodel_name='project.category',
+                                    string='Root Category for Tasks')
 
-
-class ProjectCategory(orm.Model):
-    _inherit = 'project.category'
-
-    def _name_get(self, cr, uid, ids, context=None):
-        res = []
-        rows = self.read(cr, uid, ids, ['name', 'parent_id'], context=context)
-        for row in rows:
-            parent = row['parent_id'] and (row['parent_id'][1] + ' / ') or ''
-            res.append((row['id'], parent + row['name']))
-        return res
-
-    def _name_get_fnc(self, cr, uid, ids, prop, unknow_none, context=None):
-        return dict(self._name_get(cr, uid, ids, context=context))
-
-    _columns = {
-        'parent_id': fields.many2one(
-            'project.category', 'Parent Category', select=True),
-        'child_ids': fields.one2many(
-            'project.category', 'parent_id', 'Child Categories'),
-        'complete_name': fields.function(
-            _name_get_fnc, method=True, type='char', string='Name'),
-        'code': fields.char('Code', size=10),
-    }
+class ProjectCategory(models.Model):
+    _name = 'project.category'
     _order = 'parent_id,name'
 
+    @api.multi
+    def _name_get(self):
+        return [(obj.id, obj.parent_id.name + ' / ' or '' + obj.name)
+                for obj in self]
 
-class ProjectTask(orm.Model):
+    @api.multi
+    def _name_get_fnc(self):
+        for obj in self:
+            obj.complete_name = obj._name_get()
+
+    name = fields.Char(string='Name')
+    project_id = fields.Many2one(comodel_name='project.project',
+                                 string='Project')
+    parent_id = fields.Many2one(comodel_name='project.category',
+                                string='Parent Category', index=True)
+    child_ids = fields.One2many(comodel_name='project.category',
+                                inverse_name='parent_id',
+                                string='Child Categories')
+    complete_name = fields.Char(compute='_name_get_fnc', string='Name')
+    code = fields.Char(string='Code', size=10)
+
+
+class ProjectTask(models.Model):
     _inherit = 'project.task'
-
-    def onchange_project(self, cr, uid, id, project_id, context=None):
-        # on_change is necessary to populate fields on create, before saving
-        try:
-            res = super(ProjectTask, self).onchange_project(
-                cr, uid, id, project_id, context) or {}
-        except AttributeError:
-            res = {}
-
-        if project_id:
-            obj = self.pool.get('project.project').browse(
-                cr, uid, project_id, context=context)
-            if obj.task_categ_id:
-                res.setdefault('value', {})
-                res['value']['task_categ_id'] = obj.task_categ_id.id
-        return res
-
-    _columns = {
-        'task_categ_id': fields.related(
-            'project_id', 'task_categ_id', string="Category Root",
-            type='many2one', relation='project.category', readonly=True),
-        'categ_ids': fields.many2many(
-            'project.category', string='Tags',
-            domain="[('id','child_of',task_categ_id)"
-                   ",('id','!=',task_categ_id)]"),
-    }
+    # TODO check if this code is still necessary
+    # def onchange_project(self, cr, uid, id, project_id, context=None):
+    #     # on_change is necessary to populate fields on create, before saving
+    #     try:
+    #         res = super(ProjectTask, self).onchange_project(
+    #             cr, uid, id, project_id, context) or {}
+    #     except AttributeError:
+    #         res = {}
+    #
+    #     if project_id:
+    #         obj = self.pool.get('project.project').browse(
+    #             cr, uid, project_id, context=context)
+    #         if obj.task_categ_id:
+    #             res.setdefault('value', {})
+    #             res['value']['task_categ_id'] = obj.task_categ_id.id
+    #     return res
+    task_categ_id = fields.Many2one(comodel_name='project.category',
+                                    string='Category Root',
+                                    related='project_id.task_categ_id',
+                                    readonly=True)
+    categ_ids = fields.Many2many(comodel_name='project.category',
+                                 string='Tags',
+                                 domain="[('id','child_of',task_categ_id),"
+                                        "('id','!=',task_categ_id)]")

@@ -6,14 +6,17 @@
         <record id="project_category_form_view_categs" model="ir.ui.view">
             <field name="name">project_category_form_view_sdesk</field>
             <field name="model">project.category</field>
-            <field name="inherit_id" ref="project.project_category_form_view"/>
+            <!--<field name="inherit_id" ref="project.project_category_form_view"/> TODO check if this  not exist anymore-->
             <field name="arch" type="xml">
-                <field name="name" position="after">
-                        <newline/>
+                <form>
+                    <group>
+                        <field name="name"/>
+                        <field name="project_id"/>
                         <field name="parent_id"/>
-                        <newline/>
-                        <field name="child_ids" context="{'default_parent_id': active_id}"/>
-                </field>
+                        <separator string="Child categories"/>
+                        <field name="child_ids" context="{'default_parent_id': active_id}" nolabel="1" colspan="8"/>
+                    </group>
+                </form>
             </field>
         </record>
 
@@ -23,31 +26,22 @@
             <field name="model">project.project</field>
             <field name="inherit_id" ref="project.edit_project"/>
             <field name="arch" type="xml">
-                <field name="parent_id" position="after">
+                <field name="partner_id" position="after">
                         <field name="task_categ_id" domain="[('child_ids','!=',False)]"/>
                 </field>
             </field>
         </record>
 
         <!-- Project Task form -->
-        <record id="project_task_form_view_categs" model="ir.ui.view">
+        <record id="view_task_form2" model="ir.ui.view">
             <field name="name">project_task_form_view_categs</field>
             <field name="model">project.task</field>
             <field name="inherit_id" ref="project.view_task_form2"/>
             <field name="arch" type="xml">
-
-                <field name="project_id" position="attributes">
-                    <attribute name="on_change">onchange_project(project_id)</attribute>
-                </field>
-
-                <field name="project_id" position="after">
+                <xpath expr="//field[@name='project_id']" position="after">
                     <field name="task_categ_id" invisible="1"/>
-                </field>
-
-                <field name="categ_ids"  position="attributes">
-                    <attribute name="attrs">{'required':[('task_categ_id','!=',False)]}</attribute>
-                </field>
-
+                    <field name="categ_ids" attrs="{'required':[('task_categ_id','!=',False)]}"/>
+                </xpath>
             </field>
         </record>
 
